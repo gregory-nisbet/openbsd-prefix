@@ -1,7 +1,11 @@
+package AsyncGather;
+require Exporter;
+@ISA = qw(Exporter);
+@EXPORT_OK = qw(setup gather_commands);
+
 use strict;
 use warnings FATAL => 'all';
-
-# this is meant to be a test
+use vars qw(@hosts @commands @fhs);
 
 # generate command to get average 
 # round trip length to hostname.
@@ -9,7 +13,7 @@ use warnings FATAL => 'all';
 # emits one line
 sub command {
     my $host = shift;
-    qq(ping -c 5 '$host' |) . 
+    qq(ping -w 1 -c 5 '$host' |) . 
 	q(tail -n 1 |) .
 	q(sed 's/^.*= //;s/ ms//' |) .
 	q(awk -F '/' 'END {print $2}');
@@ -27,13 +31,17 @@ sub filehandles {
     @handles;
 }
 
-my @commands = map command($_), qw[google.com cnn.com wikipedia.org microsoft.com walmart.com];
-my @fhs = filehandles(@commands);
-
-# read line from each of the ping processes sequentially
-for my $fh (@fhs) {
-    my $line = scalar <$fh>;
-    chomp $line;
-    printf "%s\n", $line || '+INF';
+sub setup {
+    @hosts = @_;
+    @commands = map command($_), @hosts;
+    @fhs = filehandles(@commands);
 }
 
+sub gather_commands {
+    my @out;
+    # read line from each of the ping processes sequentially
+    for my $fh (@fhs) {
+        my $line = scalar <$fh>;
+        push @out, $line;
+    }
+}
